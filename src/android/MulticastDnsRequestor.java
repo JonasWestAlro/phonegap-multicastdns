@@ -106,7 +106,7 @@ public class MulticastDnsRequestor {
             this.multicastSocket.send(request);
 
             //Loop forever - the timeout exception will break the loop.
-            while (true) {
+            while (answers.size() == 0) {
                 //Clear buffer
                 java.util.Arrays.fill(responseBuffer, (byte) 0);
                 try {
@@ -123,6 +123,7 @@ public class MulticastDnsRequestor {
                                     Log.i(TAG, "Got IP4 answer: " + a);
                                     answer = a.getRdataString().replace("/", "");
                                     answers.add(answer);
+                                    break;
                                 } else {
                                     Log.d(TAG, "Ignoring other answer: " + a);
                                 }
@@ -159,7 +160,7 @@ public class MulticastDnsRequestor {
         multicastSocket.setReuseAddress(true);
         multicastSocket.setNetworkInterface(networkInterface);
         multicastSocket.joinGroup(this.multicastIPAddr);
-        multicastSocket.setSoTimeout(1000);
+        multicastSocket.setSoTimeout(3000);
     }
 
     public NetworkInterface getWifiNetworkInterface() throws SocketException {

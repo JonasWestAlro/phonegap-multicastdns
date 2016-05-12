@@ -5,6 +5,7 @@ import android.util.Log;
 import org.apache.cordova.*;
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.LinkedList;
 
@@ -34,10 +35,13 @@ public class MulticastDNSPlugin extends CordovaPlugin {
 							MulticastDnsRequestor r = new MulticastDnsRequestor(multicastIP, port, context);
 							LinkedList<String> answer = r.query(host);
 
-							JSONArray json_answer = new JSONArray();
-							int i;
-							for(i=0; i<answer.size(); i++){
-								json_answer.put(answer.get(i));
+							JSONObject json_answer = new JSONObject();
+
+							if(answer.size() > 0) {
+								json_answer.put("result", "OK");
+								json_answer.put("ip", answer.get(0));
+							}else{
+								json_answer.put("result", "NOT OK");
 							}
 
 							cb.success(json_answer); // Thread-safe.
