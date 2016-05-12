@@ -53,7 +53,7 @@ public class DNSMessage {
      */
     public DNSMessage(String hostname) {
         messageId = nextMessageId++;
-        questions.add(new DNSQuestion(DNSQuestion.Type.PTR, hostname));
+        questions.add(new DNSQuestion(DNSQuestion.Type.ANY, hostname));
     }
     
     /**

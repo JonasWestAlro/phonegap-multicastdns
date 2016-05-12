@@ -6,13 +6,12 @@ import org.apache.cordova.*;
 import org.json.JSONArray;
 import org.json.JSONException;
 
-import java.util.LinkedList;
-
 public class MulticastDNSPlugin extends CordovaPlugin {
 	private static final String TAG = "MulticastDNSPlugin";
 
 	@Override
 	public boolean execute(String action, JSONArray data, CallbackContext callbackContext) throws JSONException {
+		callbackContext.error("unknown action: " + action);				
 		try {
 			Log.i(TAG, "Entered plugin execute. Action is: " + action);
 			if (action.equals("query")) {
@@ -27,21 +26,14 @@ public class MulticastDNSPlugin extends CordovaPlugin {
 				Log.i(TAG, String.format("Will query for %s on %s:%s", host, multicastIP, port));
 				final CallbackContext cb = callbackContext;
 				Log.i(TAG, "Starting new thread for request");
+
 				cordova.getThreadPool().execute(new Runnable() {
 					public void run() {
 						try {
 							Log.i(TAG, "New thread for request");
 							MulticastDnsRequestor r = new MulticastDnsRequestor(multicastIP, port, context);
-							LinkedList<String> answer = r.query(host);
-
-							JSONArray json_answer = new JSONArray();
-							int i;
-							for(i=0; i<answer.size(); i++){
-								json_answer.put(answer.get(i));
-							}
-
-							cb.success(json_answer); // Thread-safe.
-
+							String answer = r.query(host);
+							cb.success(answer); // Thread-safe.
 						} catch (Exception ex) {
 							Log.e(TAG, "Failed to lookup host. " + ex.getStackTrace());
 							cb.error(ex.getMessage());

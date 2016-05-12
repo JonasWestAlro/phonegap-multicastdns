@@ -82,84 +82,72 @@ public class MulticastDnsRequestor {
      * @return
      * @throws IOException
      */
-    public LinkedList<String> query(String host) throws IOException {
+    public String query(String host) throws IOException {
 
-        LinkedList<String> answers = new LinkedList<String>();
         String answer = null;
-
         WifiManager.MulticastLock multicastLock = this.wifiManager.createMulticastLock("MulticastDNSRequestor");
-
-        byte[] responseBuffer = new byte[BUFFER_SIZE];
-        java.util.Arrays.fill(responseBuffer, (byte) 0); // clear buffer
-        DatagramPacket response = new DatagramPacket(responseBuffer, BUFFER_SIZE);
 
         try {
             multicastLock.acquire();
             openSocket();
 
             DNSMessage q = new DNSMessage(host);
-
             byte[] queryBytes = q.serialize();
 
             DatagramPacket request = new DatagramPacket(queryBytes, queryBytes.length, this.multicastIPAddr, this.port);
             Log.i(TAG, "Sending Request: " + q);
             this.multicastSocket.send(request);
+            Log.d(TAG, "Request Sent");
 
-            //Loop forever - the timeout exception will break the loop.
-            while (true) {
-                //Clear buffer
-                java.util.Arrays.fill(responseBuffer, (byte) 0);
+            byte[] responseBuffer = new byte[BUFFER_SIZE];
+            DatagramPacket response = new DatagramPacket(responseBuffer, BUFFER_SIZE);
+
+            while (answer == null) {
+                openSocket();
+                java.util.Arrays.fill(responseBuffer, (byte) 0); // clear buffer
                 try {
                     Log.d(TAG, "About to receive");
                     multicastSocket.receive(response);
                     Log.d(TAG, "Received. Processing...");
-                    try {
+                    try
+                    {
                         DNSMessage responseMsg = new DNSMessage(response.getData(), response.getOffset(), response.getLength());
-                        Log.d(TAG, "Message contain " + responseMsg.getAnswers().size() + " answers and " + responseMsg.getQuestions().size() + "questions");
                         for (DNSAnswer a : responseMsg.getAnswers()) {
-                            Log.d(TAG, "Decoding answer..");
                             if (a.name.equals(host)) {
                                 if (a.type == DNSComponent.Type.A) {
                                     Log.i(TAG, "Got IP4 answer: " + a);
                                     answer = a.getRdataString().replace("/", "");
-                                    answers.add(answer);
                                 } else {
                                     Log.d(TAG, "Ignoring other answer: " + a);
+                                    multicastLock.release(); 
+                                    
                                 }
                             }
                         }
                     } catch (Exception dnsEx) {
                         Log.v(TAG, "Unsupported packet. Message: " + dnsEx.getMessage());
                     }
-                } catch (SocketTimeoutException stEx) {
-                    Log.v(TAG, "Timeout..");
-                    Log.v(TAG, "Found: " + answers.size() + " devices");
-                    int i;
-                    for(i=0; i<answers.size(); i++){
-                        Log.v(TAG, i + ". " + answers.get(i));
-                    }
-
-                    //throw new SocketTimeoutException();
-                    break;
-                } catch (IOException ioEx) {
+                }
+                catch (SocketTimeoutException stEx) {
+                    Log.v(TAG, "Timeout");
+                }
+                catch (IOException ioEx) {
                     Log.w(TAG, "Error during query: " + ioEx.getStackTrace());
                 }
             }
         } finally {
             multicastLock.release();
         }
-
-        Log.v(TAG, "Returning " + answers);
-        return answers;
+        return answer;
     }
 
     private void openSocket() throws IOException {
         this.multicastSocket = new MulticastSocket(this.port);
-        multicastSocket.setTimeToLive(255);
+        multicastSocket.setTimeToLive(2);
         multicastSocket.setReuseAddress(true);
         multicastSocket.setNetworkInterface(networkInterface);
         multicastSocket.joinGroup(this.multicastIPAddr);
-        multicastSocket.setSoTimeout(1000);
+        multicastSocket.setSoTimeout(5000);
     }
 
     public NetworkInterface getWifiNetworkInterface() throws SocketException {
